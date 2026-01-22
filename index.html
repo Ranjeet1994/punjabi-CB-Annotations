@@ -55,7 +55,7 @@ const pageSize = 100;
 let totalPages = 1;
 
 /* ===============================
-   RESTORE SAVED ANNOTATIONS
+   LOAD SAVED ANNOTATIONS
 ================================ */
 const saved = localStorage.getItem("cb_annotations");
 if (saved) {
@@ -89,8 +89,13 @@ document.getElementById("fileInput").addEventListener("change", e => {
       }
     }
 
-    comments = rows.slice(start).map(r => r[col]).filter(Boolean);
+    comments = rows
+      .slice(start)
+      .map(r => String(r[col]).trim())
+      .filter(Boolean);
+
     totalPages = Math.ceil(comments.length / pageSize);
+    currentPage = 1;
 
     document.getElementById("totalCount").innerText = comments.length;
     document.getElementById("totalPages").innerText = totalPages;
@@ -110,12 +115,14 @@ function render() {
   const end = Math.min(start + pageSize, comments.length);
 
   for (let i = start; i < end; i++) {
+    const comment = comments[i];
+    const a = annotations[comment] || {};
+
     const tr = document.createElement("tr");
-    const a = annotations[i] || {};
 
     tr.innerHTML = `
       <td>${i + 1}</td>
-      <td>${comments[i]}</td>
+      <td>${comment}</td>
       <td>
         <select class="sub1">
           <option value="">--Select--</option>
@@ -136,11 +143,11 @@ function render() {
     function populateSub2(mode) {
       sub2.innerHTML = `<option value="">--Select--</option>`;
       if (mode === "CB") {
-        ["Religion","Gender","Other"].forEach(v =>
-          sub2.innerHTML += `<option value="${v}">${v}</option>`);
+        ["Religion", "Gender", "Other"].forEach(v =>
+          sub2.innerHTML += `<option value="${v}">${v}</option>`
+        );
       } else {
-        ["NCB"].forEach(v =>
-          sub2.innerHTML += `<option value="${v}">${v}</option>`);
+        sub2.innerHTML += `<option value="NCB">NCB</option>`;
       }
     }
 
@@ -181,13 +188,13 @@ function render() {
         sub2.value = "";
       }
 
-      annotations[i] = { sub1: sub1.value, sub2: sub2.value };
+      annotations[comment] = { sub1: sub1.value, sub2: sub2.value };
       saveAnnotations();
       lockRow();
     };
 
     sub2.onchange = () => {
-      annotations[i] = { sub1: sub1.value, sub2: sub2.value };
+      annotations[comment] = { sub1: sub1.value, sub2: sub2.value };
       saveAnnotations();
       lockRow();
     };
@@ -220,14 +227,14 @@ document.getElementById("nextBtn").onclick = () => {
    DOWNLOAD CSV
 ================================ */
 document.getElementById("downloadBtn").onclick = () => {
-  let rows = [["Sr No","Comment","Subtask1","Subtask2"]];
-  comments.forEach((c,i)=>{
-    const a = annotations[i] || {};
-    rows.push([i+1, c, a.sub1 || "", a.sub2 || ""]);
+  let rows = [["Sr No", "Comment", "Subtask1", "Subtask2"]];
+  comments.forEach((c, i) => {
+    const a = annotations[c] || {};
+    rows.push([i + 1, c, a.sub1 || "", a.sub2 || ""]);
   });
 
   const csv = rows.map(r => r.map(x => `"${x}"`).join(",")).join("\n");
-  const blob = new Blob([csv], { type:"text/csv" });
+  const blob = new Blob([csv], { type: "text/csv" });
 
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
