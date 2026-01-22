@@ -5,21 +5,22 @@
 <title>Cyberbullying Annotation Tool</title>
 
 <style>
-body { font-family: Arial; padding: 20px; }
+body { font-family: Arial, sans-serif; padding: 20px; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #ccc; padding: 8px; }
-th { background: #f4f4f4; position: sticky; top: 0; }
+th { background: #f2f2f2; position: sticky; top: 0; }
 select { width: 100%; }
-tr.completed { background: #e6ffe6; }
-button { padding: 4px 8px; margin: 5px; }
+tr.completed { background-color: #e6ffe6; }
+button { padding: 6px 10px; margin: 5px; }
 </style>
 </head>
 
 <body>
 
-<h2>Cyberbullying Annotation Tool (Final Labels)</h2>
+<h2>Cyberbullying Annotation Interface</h2>
 
-<input type="file" id="fileInput" accept=".xlsx,.xls" />
+<p><b>Upload Excel file containing Punjabi (Gurmukhi) comments</b></p>
+<input type="file" id="fileInput" accept=".xlsx,.xls">
 
 <p>Total comments: <span id="totalCount">0</span></p>
 <p>Page: <span id="currentPage">1</span> / <span id="totalPages">1</span></p>
@@ -27,10 +28,10 @@ button { padding: 4px 8px; margin: 5px; }
 <table id="dataTable">
 <thead>
 <tr>
-<th>Sr. No.</th>
+<th>ID</th>
 <th>Comment (Gurmukhi)</th>
-<th>Subtask 1</th>
-<th>Subtask 2</th>
+<th>Subtask-1</th>
+<th>Subtask-2</th>
 <th>Action</th>
 </tr>
 </thead>
@@ -44,9 +45,9 @@ button { padding: 4px 8px; margin: 5px; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
-/* ===============================
-   GLOBAL VARIABLES
-================================ */
+/* =========================
+   GLOBAL STATE
+========================= */
 const tbody = document.querySelector("#dataTable tbody");
 let comments = [];
 let annotations = {};
@@ -54,24 +55,19 @@ let currentPage = 1;
 const pageSize = 100;
 let totalPages = 1;
 
-/* ===============================
-   LOAD SAVED ANNOTATIONS
-================================ */
+/* =========================
+   LOAD SAVED LABELS
+========================= */
 const saved = localStorage.getItem("cb_annotations");
-if (saved) {
-  annotations = JSON.parse(saved);
-}
+if (saved) annotations = JSON.parse(saved);
 
-/* ===============================
-   SAVE FUNCTION
-================================ */
 function saveAnnotations() {
   localStorage.setItem("cb_annotations", JSON.stringify(annotations));
 }
 
-/* ===============================
+/* =========================
    LOAD EXCEL FILE
-================================ */
+========================= */
 document.getElementById("fileInput").addEventListener("change", e => {
   const reader = new FileReader();
   reader.onload = evt => {
@@ -105,9 +101,9 @@ document.getElementById("fileInput").addEventListener("change", e => {
   reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-/* ===============================
+/* =========================
    RENDER TABLE
-================================ */
+========================= */
 function render() {
   tbody.innerHTML = "";
 
@@ -119,7 +115,6 @@ function render() {
     const a = annotations[comment] || {};
 
     const tr = document.createElement("tr");
-
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td>${comment}</td>
@@ -144,8 +139,7 @@ function render() {
       sub2.innerHTML = `<option value="">--Select--</option>`;
       if (mode === "CB") {
         ["Religion", "Gender", "Other"].forEach(v =>
-          sub2.innerHTML += `<option value="${v}">${v}</option>`
-        );
+          sub2.innerHTML += `<option value="${v}">${v}</option>`);
       } else {
         sub2.innerHTML += `<option value="NCB">NCB</option>`;
       }
@@ -178,16 +172,11 @@ function render() {
         populateSub2("");
         sub2.value = "NCB";
         sub2.disabled = true;
-      } else if (sub1.value === "CB") {
+      } else {
         populateSub2("CB");
         sub2.disabled = false;
         sub2.value = "";
-      } else {
-        populateSub2("");
-        sub2.disabled = false;
-        sub2.value = "";
       }
-
       annotations[comment] = { sub1: sub1.value, sub2: sub2.value };
       saveAnnotations();
       lockRow();
@@ -206,28 +195,22 @@ function render() {
   document.getElementById("currentPage").innerText = currentPage;
 }
 
-/* ===============================
+/* =========================
    PAGINATION
-================================ */
+========================= */
 document.getElementById("prevBtn").onclick = () => {
-  if (currentPage > 1) {
-    currentPage--;
-    render();
-  }
+  if (currentPage > 1) { currentPage--; render(); }
 };
 
 document.getElementById("nextBtn").onclick = () => {
-  if (currentPage < totalPages) {
-    currentPage++;
-    render();
-  }
+  if (currentPage < totalPages) { currentPage++; render(); }
 };
 
-/* ===============================
+/* =========================
    DOWNLOAD CSV
-================================ */
+========================= */
 document.getElementById("downloadBtn").onclick = () => {
-  let rows = [["Sr No", "Comment", "Subtask1", "Subtask2"]];
+  let rows = [["ID", "Comment", "Subtask1", "Subtask2"]];
   comments.forEach((c, i) => {
     const a = annotations[c] || {};
     rows.push([i + 1, c, a.sub1 || "", a.sub2 || ""]);
