@@ -238,7 +238,7 @@ document.getElementById("nextBtn").onclick = () => {
 };
 
 /* =========================
-   DOWNLOAD ONLY ANNOTATED
+   DOWNLOAD ONLY FULLY LABELED
 ========================= */
 document.getElementById("downloadBtn").onclick = () => {
   let rows = [["ID", "Comment", "Subtask1", "Subtask2"]];
@@ -252,7 +252,7 @@ document.getElementById("downloadBtn").onclick = () => {
   });
 
   if (rows.length === 1) {
-    alert("No annotated comments to download.");
+    alert("No fully labeled comments to download.");
     return;
   }
 
@@ -261,7 +261,7 @@ document.getElementById("downloadBtn").onclick = () => {
 
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "annotated_only.csv";
+  link.download = "fully_annotated_comments.csv";
   link.click();
 };
 </script>
