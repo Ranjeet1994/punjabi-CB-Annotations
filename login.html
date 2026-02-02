@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cyberbullying Annotation Login</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 50px; text-align: center; background: #f7f7f7; }
+input { padding: 8px; margin: 10px; width: 220px; font-size: 16px; }
+button { padding: 8px 16px; font-size: 16px; }
+#error { color: red; margin-top: 10px; }
+h2 { margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<h2>Annotator Login</h2>
+<p>Enter your username and password to start annotation</p>
+
+<input type="text" id="username" placeholder="Username"><br>
+<input type="password" id="password" placeholder="Password"><br>
+<button id="loginBtn">Login</button>
+<p id="error"></p>
+
+<script>
+// Define annotators and their passwords here
+const allowedUsers = {
+    "user1": "pass123",
+    "user2": "abc456",
+    "user3": "qwerty"
+};
+
+// Login button click
+document.getElementById("loginBtn").onclick = () => {
+    const uname = document.getElementById("username").value.trim();
+    const pwd = document.getElementById("password").value;
+
+    if (allowedUsers[uname] && allowedUsers[uname] === pwd) {
+        localStorage.setItem("annotator", uname); // Save logged-in user
+        window.location.href = "annotation.html"; // Redirect to annotation page
+    } else {
+        document.getElementById("error").innerText = "Invalid username or password!";
+    }
+};
+
+// Auto-redirect if already logged in
+window.onload = () => {
+    if (localStorage.getItem("annotator")) {
+        window.location.href = "annotation.html";
+    }
+};
+</script>
+
+</body>
+</html>

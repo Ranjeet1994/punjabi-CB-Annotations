@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cyberbullying Annotation Tool</title>
+
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; background: #fefefe; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #ccc; padding: 8px; }
+th { background: #f2f2f2; position: sticky; top: 0; }
+select { width: 100%; }
+tr.completed { background-color: #e6ffe6; }
+tr.highlight { background-color: #ffff99; }
+button { padding: 6px 10px; margin: 5px; }
+#userLabel { font-weight: bold; }
+</style>
+</head>
+
+<body>
+
+<h2>Cyberbullying Annotation Interface</h2>
+<p>Logged in as: <span id="userLabel"></span> | <button id="logoutBtn">Logout</button></p>
+
+<p><b>Upload Excel file containing Punjabi (Gurmukhi) comments</b></p>
+<input type="file" id="fileInput" accept=".xlsx,.xls">
+
+<p>Total comments: <span id="totalCount">0</span></p>
+<p>Annotated: <span id="doneCount">0</span> / <span id="totalCount2">0</span></p>
+<p>Page: <span id="currentPage">1</span> / <span id="totalPages">1</span></p>
+
+<table id="dataTable">
+<thead>
+<tr>
+<th>ID</th>
+<th>Comment (Gurmukhi)</th>
+<th>Subtask-1</th>
+<th>Subtask-2</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<button id="prevBtn">Previous</button>
+<button id="nextBtn">Next</button>
+<button id="jumpNextBtn">Jump to Next Unannotated</button>
+<button id="downloadBtn">Download Annotated CSV</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+/* =========================
+   CHECK LOGIN
+========================= */
+const annotator = localStorage.getItem("annotator");
+if (!annotator) {
+    alert("Please login first!");
+    window.location.href = "login.html";
+}
+document.getElementById("userLabel").innerText = annotator;
+
+document.getElementById("logoutBtn").onclick = () => {
+    localStorage.removeItem("annotator");
+    window.location.href = "login.html";
+};
+
+/* =========================
+   GLOBAL STATE
+========================= */
+const tbody = document.querySelector("#dataTable tbody");
+let comments = [];
+let annotations = {};
+let currentPage = 1;
+const pageSize = 100;
+let totalPages = 1;
+let scrollPos = 0;
+
+/* =========================
+   LOAD SAVED LABELS & PAGE
+========================= */
+const savedAnnotations = localStorage.getItem("cb_annotations_" + annotator);
+if (savedAnnotations) annotations = JSON.parse(savedAnnotations);
+
+const savedPage = localStorage.getItem("cb_page_" + annotator);
+if (savedPage) currentPage = parseInt(savedPage);
+
+/* =========================
+   SAVE FUNCTIONS
+========================= */
+function saveAnnotations() {
+    localStorage.setItem("cb_annotations_" + annotator, JSON.stringify(annotations));
+}
+function savePage() {
+    localStorage.setItem("cb_page_" + annotator, currentPage);
+}
+function saveScroll() {
+    localStorage.setItem("cb_scroll_" + annotator, window.scrollY);
+}
+
+/* =========================
+   PROGRESS UPDATE
+========================= */
+function updateProgress() {
+    let done = 0;
+    comments.forEach(c => {
+        const a = annotations[c];
+        if (a && a.sub1 && a.sub2) done++;
+    });
+    document.getElementById("doneCount").innerText = done;
+    document.getElementById("totalCount2").innerText = comments.length;
+}
+
+/* =========================
+   LOAD EXCEL FILE
+========================= */
+document.getElementById("fileInput").addEventListener("change", e => {
+    const reader = new FileReader();
+    reader.onload = evt => {
+        const wb = XLSX.read(new Uint8Array(evt.target.result), { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        let col = -1, start = 0;
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i].some(c => String(c).toLowerCase().includes("gurmukhi"))) {
+                col = rows[i].findIndex(c => String(c).toLowerCase().includes("gurmukhi"));
+                start = i + 1;
+                break;
+            }
+        }
+
+        comments = rows.slice(start).map(r => String(r[col]).trim()).filter(Boolean);
+
+        totalPages = Math.ceil(comments.length / pageSize);
+
+        document.getElementById("totalCount").innerText = comments.length;
+        document.getElementById("totalPages").innerText = totalPages;
+
+        if (!currentPage) currentPage = 1;
+        render();
+    };
+    reader.readAsArrayBuffer(e.target.files[0]);
+});
+
+/* =========================
+   RENDER TABLE
+========================= */
+function render() {
+    tbody.innerHTML = "";
+    const start = (currentPage - 1) * pageSize;
+    const end = Math.min(start + pageSize, comments.length);
+
+    for (let i = start; i < end; i++) {
+        const comment = comments[i];
+        const a = annotations[comment] || {};
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${comment}</td>
+            <td>
+                <select class="sub1">
+                    <option value="">--Select--</option>
+                    <option value="CB">CB</option>
+                    <option value="NOT_CB">NOT_CB</option>
+                </select>
+            </td>
+            <td>
+                <select class="sub2"></select>
+            </td>
+            <td><button class="unlockBtn" style="display:none">Unlock</button></td>
+        `;
+
+        const sub1 = tr.querySelector(".sub1");
+        const sub2 = tr.querySelector(".sub2");
+        const unlockBtn = tr.querySelector(".unlockBtn");
+
+        function populateSub2(mode) {
+            sub2.innerHTML = `<option value="">--Select--</option>`;
+            if (mode === "CB") ["Religion","Gender","Other"].forEach(v=>sub2.innerHTML+=`<option value="${v}">${v}</option>`);
+            else sub2.innerHTML+=`<option value="NCB">NCB</option>`;
+        }
+
+        populateSub2("");
+        if(a.sub1) sub1.value=a.sub1;
+        if(a.sub1==="CB") populateSub2("CB");
+        if(a.sub2) sub2.value=a.sub2;
+
+        function lockRow() {
+            if(sub1.value && sub2.value){
+                sub1.disabled=true;
+                sub2.disabled=true;
+                unlockBtn.style.display="inline";
+                tr.classList.add("completed");
+            }
+        }
+
+        unlockBtn.onclick = () => { sub1.disabled=false; sub2.disabled=false; unlockBtn.style.display="none"; tr.classList.remove("completed"); };
+        sub1.onchange = () => {
+            if(sub1.value==="NOT_CB"){populateSub2("");sub2.value="NCB";sub2.disabled=true;} else{populateSub2("CB");sub2.disabled=false;sub2.value="";}
+            annotations[comment]={sub1:sub1.value,sub2:sub2.value}; saveAnnotations(); updateProgress(); lockRow();
+        };
+        sub2.onchange = () => { annotations[comment]={sub1:sub1.value,sub2:sub2.value}; saveAnnotations(); updateProgress(); lockRow(); };
+
+        lockRow();
+        tbody.appendChild(tr);
+    }
+
+    // Highlight first unannotated comment on the page
+    const firstUn = Array.from(tbody.querySelectorAll("tr")).find(tr=>{
+        const s1=tr.querySelector(".sub1").value;
+        const s2=tr.querySelector(".sub2").value;
+        return !s1 || !s2;
+    });
+    tbody.querySelectorAll("tr").forEach(tr=>tr.classList.remove("highlight"));
+    if(firstUn) firstUn.classList.add("highlight");
+
+    document.getElementById("currentPage").innerText=currentPage;
+    updateProgress();
+    savePage();
+
+    // Restore scroll position
+    const savedScroll = localStorage.getItem("cb_scroll_" + annotator);
+    if(savedScroll) window.scrollTo(0, parseInt(savedScroll));
+}
+
+/* =========================
+   PAGINATION
+========================= */
+document.getElementById("prevBtn").onclick = () => { if(currentPage>1){currentPage--; render();} };
+document.getElementById("nextBtn").onclick = () => { if(currentPage<totalPages){currentPage++; render();} };
+
+/* =========================
+   JUMP TO NEXT UNANNOTATED
+========================= */
+document.getElementById("jumpNextBtn").onclick = () => {
+    let found=false;
+    for(let i=(currentPage-1)*pageSize;i<comments.length;i++){
+        const a=annotations[comments[i]];
+        if(!a||!a.sub1||!a.sub2){
+            currentPage=Math.floor(i/pageSize)+1;
+            render();
+            found=true;
+            break;
+        }
+    }
+    if(!found) alert("All comments annotated!");
+};
+
+/* =========================
+   SAVE SCROLL POSITION
+========================= */
+window.onscroll = saveScroll;
+
+/* =========================
+   DOWNLOAD CSV
+========================= */
+document.getElementById("downloadBtn").onclick = () => {
+    let rows=[["ID","Comment","Subtask1","Subtask2"]];
+    comments.forEach((c,idx)=>{
+        const a=annotations[c];
+        if(a && a.sub1 && a.sub2) rows.push([idx+1,c,a.sub1,a.sub2]);
+    });
+    if(rows.length===1){alert("No fully labeled comments to download.");return;}
+    const csv=rows.map(r=>r.map(x=>`"${x}"`).join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv"});
+    const link=document.createElement("a");
+    link.href=URL.createObjectURL(blob);
+    link.download=annotator+"_fully_annotated_comments.csv";
+    link.click();
+};
+</script>
+
+</body>
+</html>
